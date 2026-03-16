@@ -41,12 +41,19 @@ public class HighPollingRateFix : MonoBehaviour
     static extern uint GetCurrentThreadId();
 
     const int WH_MOUSE = 7;
-    const int WM_MOUSEMOVE = 0x0200;
+    const int WM_MOUSEMOVE  = 0x0200;
+    const int WM_LBUTTONDOWN = 0x0201;
+    const int WM_LBUTTONUP   = 0x0202;
+    const int WM_RBUTTONDOWN = 0x0204;
+    const int WM_RBUTTONUP   = 0x0205;
+    const int WM_MBUTTONDOWN = 0x0207;
+    const int WM_MBUTTONUP   = 0x0208;
 
     static IntPtr _hookHandle;
     static HookProc _hookDelegate; // prevent GC collection of the delegate
     static long _lastMoveTick;
     static long _minTickInterval;
+    static int _buttonsDown;
 
     void Awake()
     {
@@ -92,13 +99,31 @@ public class HighPollingRateFix : MonoBehaviour
 
     static IntPtr ThrottleMouseMove(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0 && wParam == (IntPtr)WM_MOUSEMOVE)
+        if (nCode >= 0)
         {
-            long now = Stopwatch.GetTimestamp();
-            if (now - _lastMoveTick < _minTickInterval)
-                return (IntPtr)1; // eat this WM_MOUSEMOVE
+            int msg = (int)wParam;
 
-            _lastMoveTick = now;
+            switch (msg)
+            {
+                case WM_LBUTTONDOWN:
+                case WM_RBUTTONDOWN:
+                case WM_MBUTTONDOWN:
+                    _buttonsDown++;
+                    break;
+
+                case WM_LBUTTONUP:
+                case WM_RBUTTONUP:
+                case WM_MBUTTONUP:
+                    if (_buttonsDown > 0) _buttonsDown--;
+                    break;
+
+                case WM_MOUSEMOVE when _buttonsDown == 0:
+                    long now = Stopwatch.GetTimestamp();
+                    if (now - _lastMoveTick < _minTickInterval)
+                        return (IntPtr)1;
+                    _lastMoveTick = now;
+                    break;
+            }
         }
 
         return CallNextHookEx(_hookHandle, nCode, wParam, lParam);
