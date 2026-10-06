@@ -9,6 +9,7 @@ using UnityEngine;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using AOT;
 #endif
 
 public class HighPollingRateFix : MonoBehaviour
@@ -97,6 +98,7 @@ public class HighPollingRateFix : MonoBehaviour
         _hookDelegate = null;
     }
 
+    [MonoPInvokeCallback(typeof(HookProc))]
     static IntPtr ThrottleMouseMove(int nCode, IntPtr wParam, IntPtr lParam)
     {
         if (nCode >= 0)
